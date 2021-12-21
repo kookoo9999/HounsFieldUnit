@@ -276,8 +276,9 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     sampleDataLogic = SampleData.SampleDataLogic()
     #masterVolumeNode = sampleDataLogic.downloadMRBrainTumor1()
     masterVolumeNode = slicer.util.getNode('Segment_1')
-    
-
+    #masterVolumeNode = self.ui.segmentationNodeSelector.currentNode()
+    #masterVolumeNode = slicer.ui.getCurrentNode('Segment_1')
+  
     # Create segmentation
     segmentationNode = slicer.vtkMRMLSegmentationNode()
     slicer.mrmlScene.AddNode(segmentationNode)
@@ -350,24 +351,20 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """
     Run processing when user clicks "GetHUButton" button.
     """
-    segmentationNode = slicer.vtkMRMLSegmentationNode()
-    masterVolumeNode = slicer.util.getNode('Segment_1')
+    segmentationNode = slicer.util.getNode("Segment_1")
 
-    # Get segmentation as labelmap volume node
-    labelmapVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode")
-    slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(segmentationNode, labelmapVolumeNode,
-                                                                             masterVolumeNode)
+    # Compute segment statistics
+    import SegmentStatistics
+    segStatLogic = SegmentStatistics.SegmentStatisticsLogic()
+    segStatLogic.getParameterNode().SetParameter("Segment_1", segmentationNode.GetID())
+    segStatLogic.computeStatistics()
+    stats = segStatLogic.getStatistics()
 
-    # Extract all voxels of the segment as numpy array
-    volumeArray = slicer.util.arrayFromVolume(masterVolumeNode)
-    labelArray = slicer.util.arrayFromVolume(labelmapVolumeNode)
-    labelValue = self.getNode('LabelMapVolume')
-
-    #*sgmentVoxels = volumeArray[labelArray == labelValue]
-
-    # Compute histogram
-    import numpy as np
-    histogram = np.histogram(segmentVoxels, bins=50)
+    # Display volume of each segment
+    for segmentId in stats["SegmentIDs"]:
+     volume_cm3 = stats[segmentId,"LabelmapSegmentStatisticsPlugin.volume_cm3"]
+     segmentName = segmentationNode.GetSegmentation().GetSegment(segmentId).GetName()
+     print(f"{segmentName} volume = {volume_cm3} cm3")
 
 #
 # HounsFieldUnitLogic
