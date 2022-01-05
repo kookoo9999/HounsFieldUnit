@@ -271,7 +271,7 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     """
     # Generate input data
     ################################################
-
+    
     import SampleData
     sampleDataLogic = SampleData.SampleDataLogic()
     #masterVolumeNode = sampleDataLogic.downloadMRBrainTumor1()
@@ -350,21 +350,17 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   def onGetHUButton(self):    
     """
     Run processing when user clicks "GetHUButton" button.
+    
     """
-    segmentationNode = slicer.util.getNode("Segment_1")
 
-    # Compute segment statistics
-    import SegmentStatistics
-    segStatLogic = SegmentStatistics.SegmentStatisticsLogic()
-    segStatLogic.getParameterNode().SetParameter("Segment_1", segmentationNode.GetID())
-    segStatLogic.computeStatistics()
-    stats = segStatLogic.getStatistics()
+    segmentationNode=slicer.util.getNode('Segment_1')
+    segmentId = segmentationNode.GetSegmentation().GetNthSegmentID(0)
+    segmentPolyData=segmentationNode.GetClosedSurfaceRepresentation(segmentId)
+    import vtk.util.numpy_support
+    pointData = segmentPolyData.GetPoints().GetData()
+    pointCoordinates = vtk.util.numpy_support.vtk_to_numpy(pointData)
 
-    # Display volume of each segment
-    for segmentId in stats["SegmentIDs"]:
-     volume_cm3 = stats[segmentId,"LabelmapSegmentStatisticsPlugin.volume_cm3"]
-     segmentName = segmentationNode.GetSegmentation().GetSegment(segmentId).GetName()
-     print(f"{segmentName} volume = {volume_cm3} cm3")
+      
 
 #
 # HounsFieldUnitLogic
