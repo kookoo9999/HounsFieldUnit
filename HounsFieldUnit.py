@@ -1,6 +1,8 @@
 import os
 import unittest
 import logging
+
+from numpy.lib.histograms import histogram
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
@@ -347,18 +349,59 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       import traceback
       traceback.print_exc()
 
+  def HU2Dens(HU):
+      if HU>-1000 and HU<0:
+          return HU/1000+1
+      elif HU>0:
+          return HU/1955+1
+      else:
+          return 0
+
   def onGetHUButton(self):    
     """
     Run processing when user clicks "GetHUButton" button.
     
     """
+    #convert HU values (calibrated HU) to density (g/cm3)
+    def HU2Dens(HU):
+      if HU>-1000 and HU<0:
+          return HU/1000+1
+      elif HU>0:
+          return HU/1955+1
+      else:
+          return 0
 
-    segmentationNode=slicer.util.getNode('Segment_1')
-    segmentId = segmentationNode.GetSegmentation().GetNthSegmentID(0)
-    segmentPolyData=segmentationNode.GetClosedSurfaceRepresentation(segmentId)
-    import vtk.util.numpy_support
-    pointData = segmentPolyData.GetPoints().GetData()
-    pointCoordinates = vtk.util.numpy_support.vtk_to_numpy(pointData)
+    #get necessary node
+    segmentationNode = slicer.util.getNode("Segment_1_1")
+    masterVolumeNode = slicer.util.getNode("Segment")
+    labelmapVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode")
+    slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(segmentationNode,labelmapVolumeNode,masterVolumeNode)
+    
+    #define array of node
+    volumeArray = slicer.util.arrayFromVolume(masterVolumeNode)
+    labelArray = slicer.util.arrayFromVolume(labelmapVolumeNode)
+    labelValue = 1
+    segmentVoxels = volumeArray[labelArray==labelValue]
+    
+    #computing HU values
+    import numpy as np
+    
+    coordinates = np.where(labelArray==labelValue)
+    hu = volumeArray[coordinates]
+    
+    coordinateWithHU = np.zeros([len(coordinates[0]),4])
+    coordinateWithHU[:,0:3] = np.array(coordinates).T
+    coordinateWithHU[:,3] = hu
+
+    #save coordinates
+    slicer.util.pip_install('pandas')
+    import pandas as pd
+    
+    pd.DataFrame(coordinateWithHU).to_csv("c:/Extraction_IJK_of_HU.csv")
+    print("save succeess in c:/Extraction_IJK_of_HU.csv")
+
+    histogram = np.histogram(segmentVoxels,bins=10)
+    slicer.util.plot(histogram,xColumnIndex = 1)
 
       
 
