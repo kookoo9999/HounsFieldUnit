@@ -370,10 +370,16 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
           return HU/1955+1
       else:
           return 0
-
-    #get necessary node
-    segmentationNode = slicer.util.getNode("Segment_1_1")
-    masterVolumeNode = slicer.util.getNode("Segment")
+    
+    
+    # sw=slicer.qMRMLSegmentSelectorWidget()
+    # sw.setMRMLScene(slicer.mrmlScene)
+    # sw.setCurrentNode(getNode('Segmentation'))
+    # sw.show()
+    #sw=self.ui.inputSelector.currentNode()
+    #get mrml node
+    segmentationNode = self.ui.inputSelectorSeg.currentNode()
+    masterVolumeNode = self.ui.inputSelector.currentNode()
     labelmapVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode")
     slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(segmentationNode,labelmapVolumeNode,masterVolumeNode)
     
@@ -398,7 +404,8 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     import pandas as pd
     
     pd.DataFrame(coordinateWithHU).to_csv("c:/Extraction_IJK_of_HU.csv")
-    print("save succeess in c:/Extraction_IJK_of_HU.csv")
+    #pd.DataFrame(coordinateWithHU).to_excel("c:/Extraction_IJK_of_HU.xlsx")
+    print("save succeess in c://")
 
     histogram = np.histogram(segmentVoxels,bins=10)
     slicer.util.plot(histogram,xColumnIndex = 1)
@@ -488,6 +495,7 @@ class HounsFieldUnitTest(ScriptedLoadableModuleTest):
     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
     """
     slicer.mrmlScene.Clear()
+    
 
   def runTest(self):
     """Run as few or as many tests as needed here.
