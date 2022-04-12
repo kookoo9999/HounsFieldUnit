@@ -415,13 +415,13 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     
     pd.DataFrame(coordinates).to_csv("c:/coordinates.csv")
     print("save coordinates.csv")
-    
+
     pd.DataFrame(coordinateWithHU).to_csv("c:/Extraction_IJK_of_HU.csv")    
     #pd.DataFrame(coordinateWithHU).to_excel("c:/Extraction_IJK_of_HU.xlsx")
     print("save succeess in c:/Extraction_IJK_of_HU.csv")
 
     pd.DataFrame(values).to_csv("c:/volumes.csv")
-    print("save volume.csv")
+    print("save c:/volume.csv")
 
     histogram = np.histogram(segmentVoxels,bins=10)
     slicer.util.plot(histogram,xColumnIndex = 1)
