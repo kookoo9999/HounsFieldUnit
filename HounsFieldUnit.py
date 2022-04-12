@@ -378,7 +378,7 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     # sw.show()
     #sw=self.ui.inputSelector.currentNode()
     #get mrml node
-    segmentationNode = self.ui.inputSelectorSeg.currentNode()
+    segmentationNode = self.ui.inputSelectorSeg.currentNode()    
     masterVolumeNode = self.ui.inputSelector.currentNode()
     labelmapVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode")
     slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(segmentationNode,labelmapVolumeNode,masterVolumeNode)
@@ -388,9 +388,17 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     labelArray = slicer.util.arrayFromVolume(labelmapVolumeNode)
     labelValue = 1
     segmentVoxels = volumeArray[labelArray==labelValue]
+    segmentVoxels.mean()
+    #segmentVoxels = volumeArray[labelArray != 0]
+
+    
     
     #computing HU values
     import numpy as np
+
+    points  = np.where( labelArray == 1 )  # or use another label number depending on what you segmented
+    values  = volumeArray[points] # this will be a list of the label values
+    values.mean() # should match the mean value of LabelStatistics calculation as a double-check  
     
     coordinates = np.where(labelArray==labelValue)
     hu = volumeArray[coordinates]
@@ -399,13 +407,21 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     coordinateWithHU[:,0:3] = np.array(coordinates).T
     coordinateWithHU[:,3] = hu
 
+    #print("len(coordinate[0])",len(coordinates[1]))
+    
     #save coordinates
     slicer.util.pip_install('pandas')
     import pandas as pd
     
-    pd.DataFrame(coordinateWithHU).to_csv("c:/Extraction_IJK_of_HU.csv")
+    pd.DataFrame(coordinates).to_csv("c:/coordinates.csv")
+    print("save coordinates.csv")
+    
+    pd.DataFrame(coordinateWithHU).to_csv("c:/Extraction_IJK_of_HU.csv")    
     #pd.DataFrame(coordinateWithHU).to_excel("c:/Extraction_IJK_of_HU.xlsx")
-    print("save succeess in c://")
+    print("save succeess in c:/Extraction_IJK_of_HU.csv")
+
+    pd.DataFrame(values).to_csv("c:/volumes.csv")
+    print("save volume.csv")
 
     histogram = np.histogram(segmentVoxels,bins=10)
     slicer.util.plot(histogram,xColumnIndex = 1)
