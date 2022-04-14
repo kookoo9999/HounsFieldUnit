@@ -383,12 +383,21 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     labelmapVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode")
     slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(segmentationNode,labelmapVolumeNode,masterVolumeNode)
     
+    commonGeometryString = segmentationNode.GetSegmentation().DetermineCommonLabelmapGeometry(slicer.vtkSegmentation.EXTENT_UNION_OF_SEGMENTS, None)
+    commonGeometryImage = slicer.vtkOrientedImageData()
+    slicer.vtkSegmentationConverter.DeserializeImageGeometry(commonGeometryString, commonGeometryImage, False) 
+    ijkToRas = vtk.vtkMatrix4x4()
+    commonGeometryImage.GetImageToWorldMatrix(ijkToRas)
+    print(ijkToRas)
+
     #define array of node
     volumeArray = slicer.util.arrayFromVolume(masterVolumeNode)
     labelArray = slicer.util.arrayFromVolume(labelmapVolumeNode)
     labelValue = 1
     segmentVoxels = volumeArray[labelArray==labelValue]
     segmentVoxels.mean()
+    
+    
     #segmentVoxels = volumeArray[labelArray != 0]
 
     
@@ -396,11 +405,20 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     #computing HU values
     import numpy as np
 
-    points  = np.where( labelArray == 1 )  # or use another label number depending on what you segmented
-    values  = volumeArray[points] # this will be a list of the label values
-    values.mean() # should match the mean value of LabelStatistics calculation as a double-check  
+    #points  = np.where( labelArray == 1 )  # or use another label number depending on what you segmented
+    
+
+    #values  = volumeArray[points] # this will be a list of the label values
+    #values.mean() # should match the mean value of LabelStatistics calculation as a double-check  
     
     coordinates = np.where(labelArray==labelValue)
+
+    ijkToRasMatrix = vtk.vtkMatrix4x4()
+    labelmapVolumeNode.GetIJKToRASMatrix(ijkToRasMatrix)
+    print(ijkToRasMatrix)  
+    rasPoint = ijkToRasMatrix.MultiplyFloatPoint(np.append(coordinates, 1))
+    print(rasPoint)
+
     hu = volumeArray[coordinates]
     
     coordinateWithHU = np.zeros([len(coordinates[0]),4])
@@ -416,12 +434,12 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     pd.DataFrame(coordinates).to_csv("c:/coordinates.csv")
     print("save coordinates.csv")
 
-    pd.DataFrame(coordinateWithHU).to_csv("c:/Extraction_IJK_of_HU.csv")    
+    pd.DataFrame(coordinateWithHU).to_csv("c:/HU_RES.csv")    
     #pd.DataFrame(coordinateWithHU).to_excel("c:/Extraction_IJK_of_HU.xlsx")
-    print("save succeess in c:/Extraction_IJK_of_HU.csv")
+    print("save succeess in c:/HU_RES.csv")
 
-    pd.DataFrame(values).to_csv("c:/volumes.csv")
-    print("save c:/volume.csv")
+    #pd.DataFrame(values).to_csv("c:/volumes.csv")
+    #print("save c:/volume.csv")
 
     histogram = np.histogram(segmentVoxels,bins=10)
     slicer.util.plot(histogram,xColumnIndex = 1)
