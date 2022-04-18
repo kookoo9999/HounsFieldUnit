@@ -1,3 +1,4 @@
+from asyncio.windows_events import NULL
 import os
 import unittest
 import logging
@@ -383,60 +384,104 @@ class HounsFieldUnitWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     labelmapVolumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLabelMapVolumeNode")
     slicer.modules.segmentations.logic().ExportVisibleSegmentsToLabelmapNode(segmentationNode,labelmapVolumeNode,masterVolumeNode)
     
-    commonGeometryString = segmentationNode.GetSegmentation().DetermineCommonLabelmapGeometry(slicer.vtkSegmentation.EXTENT_UNION_OF_SEGMENTS, None)
-    commonGeometryImage = slicer.vtkOrientedImageData()
-    slicer.vtkSegmentationConverter.DeserializeImageGeometry(commonGeometryString, commonGeometryImage, False) 
-    ijkToRas = vtk.vtkMatrix4x4()
-    commonGeometryImage.GetImageToWorldMatrix(ijkToRas)
-    print(ijkToRas)
+    # commonGeometryString = segmentationNode.GetSegmentation().DetermineCommonLabelmapGeometry(slicer.vtkSegmentation.EXTENT_UNION_OF_SEGMENTS, None)
+    # commonGeometryImage = slicer.vtkOrientedImageData()
+    # slicer.vtkSegmentationConverter.DeserializeImageGeometry(commonGeometryString, commonGeometryImage, False) 
+    # ijkToRas = vtk.vtkMatrix4x4()
+    # commonGeometryImage.GetImageToWorldMatrix(ijkToRas)
+    # print(ijkToRas)
 
+    import numpy as np
+    
     #define array of node
     volumeArray = slicer.util.arrayFromVolume(masterVolumeNode)
     labelArray = slicer.util.arrayFromVolume(labelmapVolumeNode)
     labelValue = 1
     segmentVoxels = volumeArray[labelArray==labelValue]
-    segmentVoxels.mean()
+    segmentVoxels.mean()   
     
-    
-    #segmentVoxels = volumeArray[labelArray != 0]
-
-    
-    
-    #computing HU values
-    import numpy as np
-
     #points  = np.where( labelArray == 1 )  # or use another label number depending on what you segmented
-    
-
     #values  = volumeArray[points] # this will be a list of the label values
     #values.mean() # should match the mean value of LabelStatistics calculation as a double-check  
     
-    coordinates = np.where(labelArray==labelValue)
-
-    ijkToRasMatrix = vtk.vtkMatrix4x4()
-    labelmapVolumeNode.GetIJKToRASMatrix(ijkToRasMatrix)
-    print(ijkToRasMatrix)  
-    rasPoint = ijkToRasMatrix.MultiplyFloatPoint(np.append(coordinates, 1))
-    print(rasPoint)
-
-    hu = volumeArray[coordinates]
     
-    coordinateWithHU = np.zeros([len(coordinates[0]),4])
-    coordinateWithHU[:,0:3] = np.array(coordinates).T
-    coordinateWithHU[:,3] = hu
 
-    #print("len(coordinate[0])",len(coordinates[1]))
+    # ijkToRasMatrix = vtk.vtkMatrix4x4()
+    # labelmapVolumeNode.GetIJKToRASMatrix(ijkToRasMatrix)
+    # print(ijkToRasMatrix)  
+
+    # rasPoint = ijkToRasMatrix.MultiplyFloatPoint(np.append(coordinates, 1))
+    # print(rasPoint)
+
+    # Get position of highest voxel value
+    point_Kji = np.where(labelArray == 1)
+    point_Ijk = [point_Kji[2][0], point_Kji[1][0], point_Kji[0][0]]
+
+    
+    
+    # Get physical coordinates from voxel coordinates
+    volumeIjkToRas = vtk.vtkMatrix4x4()
+    masterVolumeNode.GetIJKToRASMatrix(volumeIjkToRas)       
+    np_ijkToras = slicer.util.arrayFromVTKMatrix(volumeIjkToRas)    
+
+    #Transform KJI to IJK array[4 x n]
+    arrtemp = np.ones([4,len(point_Kji[0])])
+    arrtemp[0,:] = point_Kji[2]
+    arrtemp[1,:] = point_Kji[1]
+    arrtemp[2,:] = point_Kji[0]
+
+    #result = multiply Transform Matrix and IJK
+    point_result = np_ijkToras.dot(arrtemp)
+    
+    
+    #Result of RSA Coordinates
+    #point_result = np.empty((3,0),float)
+
+    # for i in range(len(point_Kji[0])) :
+
+    #   #한 컬럼씩 포인트 변환
+    #   point_temp = [ point_Kji[2][i], point_Kji[1][i], point_Kji[0][i] ]
+    #   point_VolumeRas = [0, 0, 0, 1]  
+    #   volumeIjkToRas.MultiplyPoint(np.append(point_temp,1.0), point_VolumeRas)
+
+    #   #if Transform
+    #   transformVolumeRasToRas = vtk.vtkGeneralTransform()
+    #   slicer.vtkMRMLTransformNode.GetTransformBetweenNodes(masterVolumeNode.GetParentTransformNode(), None, transformVolumeRasToRas)
+    #   point_Ras = transformVolumeRasToRas.TransformPoint(point_VolumeRas[0:3])
+
+    #   #변환한 좌표 추가
+    #   point_result = np.append(point_result, np.array([[point_Ras[0]], [point_Ras[1]], [point_Ras[2]]]), axis=1)
+      
+
+    # point_VolumeRas = [0, 0, 0, 1]
+    # volumeIjkToRas.MultiplyPoint(np.append(point_Ijk,1.0), point_VolumeRas)
+
+    # If volume node is transformed, apply that transform to get volume's RAS coordinates
+    # transformVolumeRasToRas = vtk.vtkGeneralTransform()
+    # if(NULL == {id(transformVolumeRasToRas)}):
+    #   print("null ptr")
+    # slicer.vtkMRMLTransformNode.GetTransformBetweenNodes(masterVolumeNode.GetParentTransformNode(), None, transformVolumeRasToRas)        
+    # result_ras = transformVolumeRasToRas.TransformPoint(point_result[0:3])
+
+    #computing HU values
+    coordinates = np.where(labelArray==labelValue)
+    hu = volumeArray[coordinates]
+    #houns = volumeArray[point_result]
+    
+    # coordinateWithHU = np.zeros([len(coordinates[0]),4])
+    # coordinateWithHU[:,0:3] = np.array(coordinates).T
+    # coordinateWithHU[:,3] = hu
+
+    RASwithHU = np.zeros([len(point_result[0]),4])
+    RASwithHU[:,0:3] = np.array(point_result[0:3]).T
+    RASwithHU[:,3] = hu 
     
     #save coordinates
     slicer.util.pip_install('pandas')
     import pandas as pd
     
-    pd.DataFrame(coordinates).to_csv("c:/coordinates.csv")
-    print("save coordinates.csv")
-
-    pd.DataFrame(coordinateWithHU).to_csv("c:/HU_RES.csv")    
-    #pd.DataFrame(coordinateWithHU).to_excel("c:/Extraction_IJK_of_HU.xlsx")
-    print("save succeess in c:/HU_RES.csv")
+    pd.DataFrame(RASwithHU).to_csv("c:/RAS_HU.csv")
+    print("save success in c:/RAS_HU.csv")
 
     #pd.DataFrame(values).to_csv("c:/volumes.csv")
     #print("save c:/volume.csv")
